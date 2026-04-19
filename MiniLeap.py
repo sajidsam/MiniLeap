@@ -1646,7 +1646,7 @@ def _draw_game_over():
         glColor3f(0.5, 1.0, 0.5)
         draw_text_centered(-0.30, "R  -  Restart", GLUT_BITMAP_HELVETICA_18)
         glColor3f(0.5, 0.7, 1.0)
-        draw_text_centered(-0.48, "SPACE  -  Main Menu", GLUT_BITMAP_HELVETICA_18)
+        draw_text_centered(-0.48, "ENTER  -  Main Menu", GLUT_BITMAP_HELVETICA_18)
 
 
 # ============================================================
@@ -1823,6 +1823,9 @@ def keyboard(key, x, y):
                 jumping = True
                 velocity_y = jump_power
                 jump_count += 1
+        elif key == "\r" and game_over_flag:  # ENTER → main menu
+            current_screen = SCREEN_MAIN_MENU
+            game_over_flag = False
         elif key == "r" and game_over_flag:
             selected_level = confirm_level
             init_level()
