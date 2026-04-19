@@ -1814,11 +1814,8 @@ def keyboard(key, x, y):
 
     elif current_screen == SCREEN_GAME:
         if key == " ":
-            if game_over_flag:
-                current_screen = SCREEN_MAIN_MENU
-                game_over_flag = False
-            elif jump_count < 2:
-                if jump_count == 1:  # ← 2nd press = double jump → play sound
+            if not game_over_flag and jump_count < 2:
+                if jump_count == 1:  # 2nd press = double jump
                     sound_jump.play()
                 jumping = True
                 velocity_y = jump_power
