@@ -1206,56 +1206,116 @@ def draw_instructions():
     draw_cosmic_background()
     t = glutGet(GLUT_ELAPSED_TIME) / 1000.0
 
+    # ── Title (centered) ─────────────────────────────────────
     glColor3f(1.0, 0.90, 0.20)
-    draw_text(-0.28, 0.78, "HOW TO PLAY", GLUT_BITMAP_TIMES_ROMAN_24)
+    draw_text(-0.13, 0.84, "HOW TO PLAY", GLUT_BITMAP_TIMES_ROMAN_24)
 
-    # cat jumping demo
-    bob = math.sin(t * 2) * 0.06
-    draw_cat(-0.10, -0.20 + bob, scale=1.3)
-    if bob > 0.02:
-        pass  # jumping visually
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # LEFT COLUMN  x:-0.96 → 0.28   4 cards, uniform spacing
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    CX = -0.96  # card left edge
+    CW = 1.22  # card width → right edge = 0.26
+    CH = 0.30  # UNIFORM height for all 4 cards
+    GAP = 0.05  # vertical gap between cards
+    PAD = 0.06  # inner left padding
 
-    # instruction cards
-    _draw_card(-0.90, 0.50, 0.80, 0.20)
-    glColor3f(0.2, 0.9, 0.3)
-    draw_text(-0.84, 0.64, "JUMP", GLUT_BITMAP_TIMES_ROMAN_24)
-    glColor3f(0.9, 0.9, 0.9)
-    draw_text(-0.84, 0.54, "Press  SPACE", GLUT_BITMAP_HELVETICA_18)
+    # Bottom-edge y for each card  (card extends upward by CH)
+    y1 = 0.40  # JUMP         top = 0.70
+    y2 = y1 - CH - GAP  # DOUBLE JUMP  top = 0.35
+    y3 = y2 - CH - GAP  # COLLECT      top = 0.00
+    y4 = y3 - CH - GAP  # DANGER       top = -0.35
 
-    _draw_card(-0.90, 0.22, 0.80, 0.20)
-    glColor3f(0.3, 0.6, 1.0)
-    draw_text(-0.84, 0.36, "DOUBLE JUMP", GLUT_BITMAP_TIMES_ROMAN_24)
-    glColor3f(0.9, 0.9, 0.9)
-    draw_text(-0.84, 0.26, "Press SPACE twice in air", GLUT_BITMAP_HELVETICA_18)
+    # Identical offsets from card-bottom: same rhythm in every card
+    LBL = CH - 0.06  # heading y  (= 0.24)
+    R1 = CH - 0.14  # row 1 y    (= 0.16)
+    R2 = CH - 0.22  # row 2 y    (= 0.08)
 
-    _draw_card(-0.90, -0.08, 0.80, 0.22)
-    glColor3f(1.0, 0.7, 0.2)
-    draw_text(-0.84, 0.08, "COLLECT", GLUT_BITMAP_TIMES_ROMAN_24)
-    glColor3f(1.0, 0.85, 0.0)
-    draw_coin([-0.80, -0.03, 0.03])
-    glColor3f(0.9, 0.9, 0.9)
-    draw_text(-0.72, -0.02, "Coins = +1 Score", GLUT_BITMAP_HELVETICA_18)
-    glColor3f(1.0, 0.95, 0.2)
-    draw_star_item([-0.80, -0.14])
-    glColor3f(0.9, 0.9, 0.9)
-    draw_text(-0.72, -0.14, "Star = -1 Injury", GLUT_BITMAP_HELVETICA_18)
+    # ── Card 1: JUMP ─────────────────────────────────────────
+    _draw_card(CX, y1, CW, CH)
+    glColor3f(0.30, 1.00, 0.45)
+    draw_text(CX + PAD, y1 + LBL, "JUMP", GLUT_BITMAP_TIMES_ROMAN_24)
+    glColor3f(0.88, 0.88, 0.88)
+    draw_text(CX + PAD, y1 + R1, "Press  SPACE  to jump", GLUT_BITMAP_HELVETICA_18)
 
-    _draw_card(-0.90, -0.38, 0.80, 0.22)
-    glColor3f(1.0, 0.3, 0.3)
-    draw_text(-0.84, -0.22, "DANGER", GLUT_BITMAP_TIMES_ROMAN_24)
-    glColor3f(0.9, 0.9, 0.9)
-    draw_text(-0.84, -0.32, "3 injuries = Game Over", GLUT_BITMAP_HELVETICA_18)
-    draw_text(-0.84, -0.44, "Mine/Cactus = Instant Death!", GLUT_BITMAP_HELVETICA_12)
+    # ── Card 2: DOUBLE JUMP ──────────────────────────────────
+    _draw_card(CX, y2, CW, CH)
+    glColor3f(0.35, 0.65, 1.00)
+    draw_text(CX + PAD, y2 + LBL, "DOUBLE JUMP", GLUT_BITMAP_TIMES_ROMAN_24)
+    glColor3f(0.88, 0.88, 0.88)
+    draw_text(
+        CX + PAD,
+        y2 + R1,
+        "Press SPACE again while in the air",
+        GLUT_BITMAP_HELVETICA_18,
+    )
 
-    # injury hearts display
-    glColor3f(1.0, 0.3, 0.3)
+    _draw_card(CX, y3, CW, CH)
+    glColor3f(1.00, 0.75, 0.25)
+    draw_text(CX + PAD, y3 + LBL, "COLLECT", GLUT_BITMAP_TIMES_ROMAN_24)
+    # row 1: coin icon + label
+    icx = CX + PAD + 0.028
+    draw_coin([icx, y3 + R1 + 0.007, 0.024])
+    glColor3f(0.88, 0.88, 0.88)
+    draw_text(
+        CX + PAD + 0.070, y3 + R1 - 0.008, "Coin  =  +1 Score", GLUT_BITMAP_HELVETICA_18
+    )
+    # row 2: star icon + label
+    draw_star_item([icx, y3 + R2 + 0.014])
+    glColor3f(0.88, 0.88, 0.88)
+    draw_text(
+        CX + PAD + 0.070,
+        y3 + R2 - 0.004,
+        "Star  =  -1 Injury",
+        GLUT_BITMAP_HELVETICA_18,
+    )
+
+    _draw_card(CX, y4, CW, CH)
+    glColor3f(1.00, 0.28, 0.28)
+    draw_text(CX + PAD, y4 + LBL, "DANGER", GLUT_BITMAP_TIMES_ROMAN_24)
+    glColor3f(0.88, 0.88, 0.88)
+    draw_text(CX + PAD, y4 + R1, "3 injuries  =  Game Over", GLUT_BITMAP_HELVETICA_18)
+    glColor3f(1.00, 0.55, 0.55)
+    draw_text(
+        CX + PAD, y4 + R2, "Mine / Cactus  =  Instant Death!", GLUT_BITMAP_HELVETICA_12
+    )
+
+    # vertical divider between left cards and right cat panel
+    glColor3f(0.35, 0.25, 0.65)
+    glLineWidth(1.5)
+    glBegin(GL_LINES)
+    glVertex2f(0.32, 0.76)
+    glVertex2f(0.32, -0.82)
+    glEnd()
+    glLineWidth(1)
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # RIGHT COLUMN  x: 0.36 → 0.96  |  center x = RC = 0.66
+    # ALL items positioned relative to RC, not screen centre 0
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    RC = 0.66
+
+    # "YOUR HERO" header (9 chars × ~10 px = 90 px = 0.15 GL-x → start RC-0.075)
+    glColor3f(0.70, 0.70, 1.00)
+    draw_text(RC - 0.076, 0.74, "YOUR HERO", GLUT_BITMAP_HELVETICA_18)
+
+    # cat (half-width = 0.065 × scale=1.45 = 0.094, left edge = RC - 0.094)
+    bob = math.sin(t * 2.0) * 0.05
+    draw_cat(RC - 0.094, -0.12 + bob, scale=1.45)
+
+    # "LIVES" label (5 chars × ~9 px = 45 px = 0.075 GL-x → start RC-0.038)
+    glColor3f(0.65, 0.65, 0.85)
+    draw_text(RC - 0.038, -0.60, "LIVES", GLUT_BITMAP_HELVETICA_12)
+
+    # 3 hearts centred on RC (spacing 0.13,  half-span = 0.13)
     for i in range(3):
-        draw_heart(0.30 + i * 0.12, 0.10)
+        glColor3f(1.0, 0.22, 0.32)
+        draw_heart(RC - 0.13 + i * 0.13, -0.74)
 
+    # ── Bottom prompt (full-width, centred) ───────────────────
     if int(t * 2) % 2 == 0:
-        glColor3f(0.9, 0.9, 1.0)
+        glColor3f(0.85, 0.85, 1.00)
         draw_text_centered(
-            -0.88, "Press SPACE to Choose Your World!", GLUT_BITMAP_HELVETICA_18
+            -0.90, "Press SPACE to Choose Your World!", GLUT_BITMAP_HELVETICA_18
         )
 
 
