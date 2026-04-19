@@ -13,6 +13,17 @@ import random
 import math
 
 # ============================================================
+# SOUND SETUP  ← only new addition
+# ============================================================
+import pygame
+pygame.mixer.init()
+sound_coin   = pygame.mixer.Sound("assets/Sound/coin.wav")
+sound_dizzy  = pygame.mixer.Sound("assets/Sound/dizzy.wav")
+sound_jump   = pygame.mixer.Sound("assets/Sound/jump.wav")
+sound_jungle = pygame.mixer.Sound("assets/Sound/JungleSound.wav")
+sound_jungle.play(-1)   # loop jungle bg forever
+
+# ============================================================
 # WINDOW CONSTANTS
 # ============================================================
 WIN_W = 1200
@@ -1202,6 +1213,7 @@ def update(value):
                 if collide_rect_cat(cat_x, cat_y, obs[0], obs[1], obs[2], obs[3]):
                     otype = obs[4]
                     if otype == 2:  # mine / cactus = instant death
+                        sound_dizzy.play()          # ← dizzy sound on bomb hit
                         spawn_explosion(obs[0] + obs[2] * 0.5, obs[1] + obs[3] * 0.5)
                         injury_count = 3
                     else:
@@ -1233,6 +1245,7 @@ def update(value):
                 coin[0] = random.uniform(1.1, 2.0)
                 coin[1] = random.uniform(-0.40, 0.20)
             elif collide_coin_cat(cat_x, cat_y, coin[0], coin[1], coin[2]):
+                sound_coin.play()                   # ← coin collect sound
                 score += 1
                 coin[0] = random.uniform(1.1, 2.0)
                 coin[1] = random.uniform(-0.40, 0.20)
@@ -1299,6 +1312,8 @@ def keyboard(key, x, y):
                 current_screen = SCREEN_MAIN_MENU
                 game_over_flag = False
             elif jump_count < 2:
+                if jump_count == 1:         # ← 2nd press = double jump → play sound
+                    sound_jump.play()
                 jumping = True
                 velocity_y = jump_power
                 jump_count += 1
@@ -1346,4 +1361,4 @@ glutMouseFunc(mouse_click)
 glutReshapeFunc(reshape)
 glutTimerFunc(16, update, 0)
 
-glutMainLoop()
+glutMainLoop() 
