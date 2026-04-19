@@ -1790,7 +1790,7 @@ def keyboard(key, x, y):
             current_screen = SCREEN_INSTRUCTIONS
 
     elif current_screen == SCREEN_INSTRUCTIONS:
-        if key == " ":
+        if key == "\r":
             current_screen = SCREEN_MAIN_MENU
 
     elif current_screen == SCREEN_MAIN_MENU:
