@@ -27,7 +27,7 @@ import random
 import math
 
 # ============================================================
-# SOUND SETUP  ← only new addition
+# SOUND SETUP
 # ============================================================
 import pygame
 
@@ -60,7 +60,7 @@ current_screen = SCREEN_SPLASH
 # ============================================================
 # GAME GLOBALS
 # ============================================================
-selected_level = 0  # 0=Jungle 1=Ice 2=Underground
+selected_level = 0  # 0=Jungle 1=Ice 2=Underground 3=Desert 4=Underwater
 cat_x = -0.65
 cat_y = -0.70
 velocity_y = 0.0
@@ -89,6 +89,13 @@ fly_y = 0.0
 fly_dir = 1
 confirm_level = -1
 
+
+# Scroll variables
+_scroll_jungle = 0.0
+_scroll_ice = 0.0
+_scroll_ug = 0.0
+_scroll_desert = 0.0
+_scroll_water = 0.0
 
 # ============================================================
 # UTILITIES
@@ -270,7 +277,6 @@ def _draw_realistic_ears(x, y, s):
 def _draw_realistic_tail(x, y, s, t, is_jumping):
     """Multi-thickness wavy tail with tip highlight."""
     if is_jumping:
-        # tail streams back during jump
         pts = []
         for i in range(12):
             tx = x - 0.010 * s - i * 0.012 * s
@@ -282,21 +288,18 @@ def _draw_realistic_tail(x, y, s, t, is_jumping):
             tx = x - 0.010 * s - i * 0.012 * s
             ty = y + 0.055 * s + math.sin(i * 0.9 + t * 1.1) * 0.022 * s
             pts.append((tx, ty))
-    # thick dark base
     glColor3f(0.62, 0.30, 0.06)
     glLineWidth(max(5, 7 * s))
     glBegin(GL_LINE_STRIP)
     for px, py in pts:
         glVertex2f(px, py)
     glEnd()
-    # main fur color
     glColor3f(0.90, 0.52, 0.14)
     glLineWidth(max(3, 5 * s))
     glBegin(GL_LINE_STRIP)
     for px, py in pts:
         glVertex2f(px, py)
     glEnd()
-    # bright tip
     glColor3f(1.00, 0.80, 0.40)
     glLineWidth(max(1.5, 2 * s))
     glBegin(GL_LINE_STRIP)
@@ -309,64 +312,47 @@ def _draw_realistic_tail(x, y, s, t, is_jumping):
 def _draw_realistic_legs(x, y, s, t, is_jumping):
     """Smooth IK-style legs with thigh, shin, paw."""
     if is_jumping:
-        # tuck legs
         leg_configs = [
             (
-                x + 0.025 * s,
-                y + 0.040 * s,
-                x + 0.010 * s,
-                y + 0.010 * s,
-                x + 0.005 * s,
-                y - 0.002 * s,
+                x + 0.025 * s, y + 0.040 * s,
+                x + 0.010 * s, y + 0.010 * s,
+                x + 0.005 * s, y - 0.002 * s,
             ),
             (
-                x + 0.105 * s,
-                y + 0.040 * s,
-                x + 0.120 * s,
-                y + 0.010 * s,
-                x + 0.125 * s,
-                y - 0.002 * s,
+                x + 0.105 * s, y + 0.040 * s,
+                x + 0.120 * s, y + 0.010 * s,
+                x + 0.125 * s, y - 0.002 * s,
             ),
         ]
     else:
         lo = math.sin(t * 1.2) * 0.018
         leg_configs = [
             (
-                x + 0.025 * s,
-                y + 0.020 * s,
-                x + 0.020 * s,
-                y - 0.010 * s + lo,
-                x + 0.016 * s,
-                y - 0.024 * s + lo,
+                x + 0.025 * s, y + 0.020 * s,
+                x + 0.020 * s, y - 0.010 * s + lo,
+                x + 0.016 * s, y - 0.024 * s + lo,
             ),
             (
-                x + 0.105 * s,
-                y + 0.020 * s,
-                x + 0.110 * s,
-                y - 0.010 * s - lo,
-                x + 0.114 * s,
-                y - 0.024 * s - lo,
+                x + 0.105 * s, y + 0.020 * s,
+                x + 0.110 * s, y - 0.010 * s - lo,
+                x + 0.114 * s, y - 0.024 * s - lo,
             ),
         ]
     for hx, hy, kx, ky, px, py in leg_configs:
-        # thigh
         glColor3f(0.78, 0.42, 0.10)
         glLineWidth(max(4, 6 * s))
         glBegin(GL_LINES)
         glVertex2f(hx, hy)
         glVertex2f(kx, ky)
         glEnd()
-        # shin
         glColor3f(0.86, 0.50, 0.14)
         glLineWidth(max(3, 4.5 * s))
         glBegin(GL_LINES)
         glVertex2f(kx, ky)
         glVertex2f(px, py)
         glEnd()
-        # paw
         glColor3f(1.00, 0.76, 0.56)
         draw_ellipse(px, py, 0.014 * s, 0.009 * s)
-        # toe beans
         glColor3f(0.88, 0.55, 0.55)
         for ti in range(3):
             bx = px + (ti - 1) * 0.006 * s
@@ -377,7 +363,6 @@ def _draw_realistic_legs(x, y, s, t, is_jumping):
 def draw_cat(x, y, scale=1.0):
     t = glutGet(GLUT_ELAPSED_TIME) / 120.0
     s = scale
-    # draw order: tail → legs → body → head+ears
     _draw_realistic_tail(x, y, s, t, jumping)
     _draw_realistic_legs(x, y, s, t, jumping)
     _draw_fur_body(x, y, s)
@@ -391,15 +376,12 @@ def draw_cat(x, y, scale=1.0):
 def draw_fly(x, y, scale=1.0):
     t = glutGet(GLUT_ELAPSED_TIME) / 80.0
     s = scale
-    # body
     glColor3f(0.1, 0.1, 0.1)
     draw_ellipse(x, y, 0.02 * s, 0.012 * s)
-    # wings (light gray-blue, no alpha needed)
     glColor3f(0.65, 0.82, 0.92)
     wing_flap = math.sin(t * 3) * 0.008
     draw_ellipse(x - 0.025 * s, y + 0.01 * s + wing_flap, 0.022 * s, 0.008 * s)
     draw_ellipse(x + 0.025 * s, y + 0.01 * s - wing_flap, 0.022 * s, 0.008 * s)
-    # eyes
     glColor3f(0.9, 0.1, 0.1)
     draw_circle(x - 0.007 * s, y + 0.005 * s, 0.004 * s)
     draw_circle(x + 0.007 * s, y + 0.005 * s, 0.004 * s)
@@ -426,7 +408,6 @@ _nebula_blobs = [
 
 
 def draw_cosmic_background():
-    # deep space gradient (manual quads)
     glBegin(GL_QUADS)
     glColor3f(0.01, 0.00, 0.05)
     glVertex2f(-1, -1)
@@ -436,12 +417,10 @@ def draw_cosmic_background():
     glVertex2f(-1, 1)
     glEnd()
 
-    # nebula blobs (use dim glColor3f instead of alpha)
     for bx, by, br, r, g, b in _nebula_blobs:
         glColor3f(r * 0.15, g * 0.08, b * 0.22)
         draw_circle(bx, by, br, 32)
 
-    # stars
     glPointSize(2)
     glBegin(GL_POINTS)
     t = glutGet(GLUT_ELAPSED_TIME) / 2000.0
@@ -452,7 +431,6 @@ def draw_cosmic_background():
     glEnd()
     glPointSize(1)
 
-    # distant galaxy smear
     glColor3f(0.12, 0.05, 0.20)
     draw_ellipse(0.3, 0.2, 0.5, 0.15, 64)
     glColor3f(0.05, 0.08, 0.20)
@@ -460,14 +438,13 @@ def draw_cosmic_background():
 
 
 # ============================================================
-# JUNGLE BACKGROUND (layered silhouettes, looping)
+# JUNGLE BACKGROUND
 # ============================================================
 _scroll_jungle = 0.0
 
 
 def draw_jungle_bg():
     global _scroll_jungle
-    # sky gradient proper 4-vertex quad
     glBegin(GL_QUADS)
     glColor3f(0.53, 0.81, 0.98)
     glVertex2f(-1, -1)
@@ -479,25 +456,20 @@ def draw_jungle_bg():
     glVertex2f(-1, 1)
     glEnd()
 
-    # sun (no alpha needed)
     glColor3f(1.0, 0.95, 0.5)
     draw_circle(0.7, 0.7, 0.13)
     glColor3f(1.0, 0.98, 0.60)
     draw_circle(0.7, 0.7, 0.08)
 
-    # distant hills (lightest green)
     glColor3f(0.45, 0.72, 0.35)
     _draw_hill_layer(-0.30, 0.45, 0.6, _scroll_jungle * 0.1)
 
-    # mid-ground trees (medium green)
     glColor3f(0.22, 0.52, 0.18)
     _draw_tree_layer(-0.30, 0.55, 0.38, _scroll_jungle * 0.3, density=14)
 
-    # foreground ferns / dark trees
     glColor3f(0.06, 0.28, 0.06)
     _draw_tree_layer(-0.70, 0.70, 0.32, _scroll_jungle * 0.6, density=10, tall=True)
 
-    # ground
     glColor3f(0.18, 0.62, 0.10)
     draw_rect(-1, -0.80, 2, 0.12)
     glColor3f(0.10, 0.45, 0.06)
@@ -523,23 +495,19 @@ def _draw_tree_layer(base_y, height, width, scroll, density=12, tall=False):
         h = height * (0.85 + 0.3 * math.sin(i * 2.3))
         w = width * (0.7 + 0.3 * math.sin(i * 1.7))
         if tall:
-            # palm-like
             _draw_palm_silhouette(tx, base_y, h, w)
         else:
-            # canopy circle tree
             draw_ellipse(tx, base_y + h * 0.5, w * 0.5, h * 0.55, 24)
             draw_rect(tx - 0.018, base_y, 0.036, h * 0.4)
 
 
 def _draw_palm_silhouette(x, base_y, h, w):
-    # trunk
     glBegin(GL_QUADS)
     glVertex2f(x - 0.015, base_y)
     glVertex2f(x + 0.015, base_y)
     glVertex2f(x + 0.025, base_y + h)
     glVertex2f(x - 0.010, base_y + h)
     glEnd()
-    # fronds
     for angle in [-0.9, -0.4, 0.0, 0.4, 0.9]:
         glBegin(GL_TRIANGLES)
         glVertex2f(x, base_y + h)
@@ -565,7 +533,7 @@ _ice_stars = [
 
 
 def draw_ice_bg():
-    # sky dark teal to navy - single proper quad
+    global _scroll_ice
     glBegin(GL_QUADS)
     glColor3f(0.00, 0.10, 0.20)
     glVertex2f(-1, -1)
@@ -577,7 +545,6 @@ def draw_ice_bg():
     glVertex2f(-1, 1)
     glEnd()
 
-    # stars
     glPointSize(2)
     glBegin(GL_POINTS)
     t = glutGet(GLUT_ELAPSED_TIME) / 3000.0
@@ -588,26 +555,21 @@ def draw_ice_bg():
     glEnd()
     glPointSize(1)
 
-    # aurora hint (use glColor3f - blend already enabled globally)
     glColor3f(0.10, 0.55, 0.45)
     draw_ellipse(-0.2, 0.6, 0.9, 0.08, 48)
     glColor3f(0.15, 0.30, 0.65)
     draw_ellipse(0.4, 0.55, 0.6, 0.06, 48)
 
-    # distant mountains (dark gray-blue silhouette)
     glColor3f(0.12, 0.18, 0.28)
     _draw_ice_mountains(_scroll_ice * 0.08)
 
-    # mountain ice caps (white-blue)
     glColor3f(0.80, 0.88, 1.00)
     _draw_ice_caps(_scroll_ice * 0.08)
 
-    # snowy ground
     glColor3f(0.65, 0.80, 0.98)
     draw_rect(-1, -0.82, 2, 0.14)
     glColor3f(0.90, 0.95, 1.00)
     draw_rect(-1, -0.72, 2, 0.03)
-    # snow bumps
     for i in range(12):
         bx = -1.0 + i * 0.18 + (_scroll_ice * 0.5 % 0.18)
         glColor3f(0.95, 0.98, 1.0)
@@ -616,14 +578,8 @@ def draw_ice_bg():
 
 def _draw_ice_mountains(scroll):
     peaks = [
-        (-0.9, 0.35),
-        (-0.6, 0.60),
-        (-0.3, 0.42),
-        (0.0, 0.72),
-        (0.3, 0.50),
-        (0.6, 0.65),
-        (0.9, 0.38),
-        (1.2, 0.55),
+        (-0.9, 0.35), (-0.6, 0.60), (-0.3, 0.42), (0.0, 0.72),
+        (0.3, 0.50), (0.6, 0.65), (0.9, 0.38), (1.2, 0.55),
     ]
     glBegin(GL_POLYGON)
     glVertex2f(-1.1, -0.20)
@@ -638,14 +594,8 @@ def _draw_ice_mountains(scroll):
 
 def _draw_ice_caps(scroll):
     peaks = [
-        (-0.9, 0.35),
-        (-0.6, 0.60),
-        (-0.3, 0.42),
-        (0.0, 0.72),
-        (0.3, 0.50),
-        (0.6, 0.65),
-        (0.9, 0.38),
-        (1.2, 0.55),
+        (-0.9, 0.35), (-0.6, 0.60), (-0.3, 0.42), (0.0, 0.72),
+        (0.3, 0.50), (0.6, 0.65), (0.9, 0.38), (1.2, 0.55),
     ]
     for px, ph in peaks:
         ox = ((px - scroll) % 2.4) - 1.2
@@ -663,7 +613,7 @@ _scroll_ug = 0.0
 
 
 def draw_underground_bg():
-    # deep cave black-purple proper quad
+    global _scroll_ug
     glBegin(GL_QUADS)
     glColor3f(0.04, 0.01, 0.10)
     glVertex2f(-1, -1)
@@ -675,39 +625,31 @@ def draw_underground_bg():
     glVertex2f(-1, 1)
     glEnd()
 
-    # distant crystals (light purple)
     glColor3f(0.50, 0.25, 0.70)
     _draw_crystal_layer(-0.65, 0.30, _scroll_ug * 0.12, size=0.08)
 
-    # mid crystals (pink-purple)
     glColor3f(0.80, 0.20, 0.65)
     _draw_crystal_layer(-0.68, 0.45, _scroll_ug * 0.30, size=0.12)
 
-    # foreground crystals teal/blue-purple
     glColor3f(0.10, 0.75, 0.70)
     _draw_crystal_layer(-0.72, 0.60, _scroll_ug * 0.55, size=0.16)
     glColor3f(0.20, 0.35, 0.85)
     _draw_crystal_layer(-0.72, 0.55, _scroll_ug * 0.58 + 0.5, size=0.14)
 
-    # stalactites from ceiling
     glColor3f(0.15, 0.05, 0.30)
     _draw_stalactites(_scroll_ug * 0.4)
 
-    # floor rocks
     glColor3f(0.12, 0.05, 0.22)
     draw_rect(-1, -0.85, 2, 0.18)
 
-    # rail line
     glColor3f(0.55, 0.45, 0.35)
-    draw_rect(-1, -0.705, 2, 0.012)  # top rail
-    draw_rect(-1, -0.730, 2, 0.012)  # bottom rail
-    # sleepers
+    draw_rect(-1, -0.705, 2, 0.012)
+    draw_rect(-1, -0.730, 2, 0.012)
     for i in range(20):
         sx = -1.05 + i * 0.12 + (_scroll_ug % 0.12)
         glColor3f(0.40, 0.28, 0.18)
         draw_rect(sx, -0.738, 0.07, 0.038)
 
-    # floor surface
     glColor3f(0.18, 0.08, 0.32)
     draw_rect(-1, -0.695, 2, 0.008)
 
@@ -719,7 +661,6 @@ def _draw_crystal_layer(base_y, height, scroll, size=0.1):
         cx = ((cx + 1.2) % 2.8) - 1.2
         h = height * (0.7 + 0.5 * math.sin(i * 2.1))
         w = size * (0.6 + 0.4 * math.sin(i * 1.5))
-        # angular crystal spike
         glBegin(GL_TRIANGLES)
         glVertex2f(cx - w * 0.5, base_y)
         glVertex2f(cx, base_y + h)
@@ -747,6 +688,215 @@ def _draw_stalactites(scroll):
 
 
 # ============================================================
+# DESERT BACKGROUND
+# ============================================================
+_scroll_desert = 0.0
+_desert_stars = [
+    (random.uniform(-1, 1), random.uniform(0.2, 1.0), random.uniform(0.002, 0.004))
+    for _ in range(150)
+]
+
+
+def draw_desert_bg():
+    global _scroll_desert
+
+    glBegin(GL_QUADS)
+    glColor3f(0.95, 0.55, 0.15); glVertex2f(-1, -1)
+    glColor3f(0.95, 0.55, 0.15); glVertex2f( 1, -1)
+    glColor3f(0.75, 0.25, 0.45); glVertex2f( 1,  1)
+    glColor3f(0.75, 0.25, 0.45); glVertex2f(-1,  1)
+    glEnd()
+
+    glColor3f(1.0, 0.95, 0.3)
+    draw_circle(0.6, 0.65, 0.15)
+    glColor3f(1.0, 1.0, 0.6)
+    draw_circle(0.6, 0.65, 0.10)
+
+    glPointSize(1.5)
+    glBegin(GL_POINTS)
+    t = glutGet(GLUT_ELAPSED_TIME) / 3000.0
+    for sx, sy, sr in _desert_stars:
+        b = 0.4 + 0.6 * math.sin(t + sx * 5)
+        glColor3f(b, b * 0.8, b * 0.5)
+        glVertex2f(sx, sy)
+    glEnd()
+    glPointSize(1)
+
+    glColor3f(0.85, 0.45, 0.15)
+    _draw_dunes(-0.45, 0.40, 0.5, _scroll_desert * 0.15)
+
+    glColor3f(0.75, 0.35, 0.10)
+    _draw_dunes(-0.55, 0.50, 0.6, _scroll_desert * 0.3)
+
+    glColor3f(0.65, 0.25, 0.05)
+    _draw_dunes(-0.65, 0.60, 0.7, _scroll_desert * 0.5)
+
+    glColor3f(0.90, 0.65, 0.20)
+    draw_rect(-1, -0.82, 2, 0.14)
+    glColor3f(0.80, 0.55, 0.15)
+    draw_rect(-1, -0.80, 2, 0.04)
+
+    for i in range(15):
+        rx = -1.0 + i * 0.15 + (_scroll_desert * 0.7 % 0.15)
+        glColor3f(0.85, 0.60, 0.18)
+        draw_ellipse(rx, -0.76, 0.06, 0.015, 16)
+
+    glColor3f(0.25, 0.35, 0.15)
+    _draw_cacti_layer(-0.72, 0.30, _scroll_desert * 0.4)
+
+
+def _draw_dunes(base_y, amplitude, freq, scroll):
+    glBegin(GL_POLYGON)
+    glVertex2f(-1.1, -0.85)
+    steps = 80
+    for i in range(steps + 1):
+        fx = -1.1 + i * 2.2 / steps
+        fy = base_y + amplitude * 0.15 * math.sin((fx + scroll) * freq * math.pi)
+        glVertex2f(fx, fy)
+    glVertex2f(1.1, -0.85)
+    glEnd()
+
+
+def _draw_cacti_layer(base_y, height, scroll):
+    count = 10
+    for i in range(count + 2):
+        cx = -1.2 + (i / count) * 2.8 + (scroll % (2.8 / count))
+        cx = ((cx + 1.2) % 2.8) - 1.2
+        h = height * (0.7 + 0.4 * math.sin(i * 1.8))
+        w = 0.04
+        draw_rect(cx - w, base_y, w * 2, h)
+        draw_rect(cx - w * 2.5, base_y + h * 0.5, w * 1.5, h * 0.3)
+        draw_rect(cx - w * 2.5, base_y + h * 0.7, w * 1.5, h * 0.25)
+        draw_rect(cx + w * 1.5, base_y + h * 0.4, w * 1.5, h * 0.3)
+        draw_rect(cx + w * 1.5, base_y + h * 0.6, w * 1.5, h * 0.25)
+
+
+# ============================================================
+# UNDERWATER BACKGROUND
+# ============================================================
+_scroll_water = 0.0
+_water_bubbles = [
+    [random.uniform(-1, 1), random.uniform(-0.5, 1.0), random.uniform(0.005, 0.015), random.uniform(0.5, 2.0)]
+    for _ in range(30)
+]
+_water_fish = []
+
+
+def draw_underwater_bg():
+    global _scroll_water, _water_fish
+
+    glBegin(GL_QUADS)
+    glColor3f(0.02, 0.10, 0.25); glVertex2f(-1, -1)
+    glColor3f(0.02, 0.10, 0.25); glVertex2f( 1, -1)
+    glColor3f(0.00, 0.20, 0.40); glVertex2f( 1,  1)
+    glColor3f(0.00, 0.20, 0.40); glVertex2f(-1,  1)
+    glEnd()
+
+    glColor3f(0.15, 0.35, 0.55)
+    for i in range(6):
+        angle = -0.3 + i * 0.15 + math.sin(_scroll_water * 0.1) * 0.05
+        glBegin(GL_TRIANGLES)
+        glVertex2f(-0.8 + i * 0.35, 1.0)
+        glVertex2f(-0.6 + i * 0.35 + angle * 0.5, -0.8)
+        glVertex2f(-0.4 + i * 0.35 + angle * 0.5, -0.8)
+        glEnd()
+
+    glColor3f(0.10, 0.45, 0.15)
+    _draw_seaweed_layer(_scroll_water)
+
+    glColor3f(0.95, 0.45, 0.35)
+    _draw_coral_layer(-0.75, 0.25, _scroll_water * 0.2)
+    glColor3f(0.85, 0.25, 0.55)
+    _draw_coral_layer(-0.70, 0.35, _scroll_water * 0.3 + 1.0)
+
+    glColor3f(0.70, 0.60, 0.40)
+    draw_rect(-1, -0.85, 2, 0.18)
+    glColor3f(0.60, 0.50, 0.30)
+    draw_rect(-1, -0.83, 2, 0.04)
+
+    for i in range(10):
+        sx = -0.95 + i * 0.22 + (_scroll_water * 0.3 % 0.22)
+        glColor3f(0.75, 0.65, 0.45)
+        draw_ellipse(sx, -0.80, 0.03, 0.015, 12)
+
+    _update_bubbles()
+    glColor3f(0.6, 0.85, 1.0)
+    for bx, by, br, _ in _water_bubbles:
+        draw_circle(bx, by, br, 16)
+
+    _update_fish()
+    for fx, fy, fdir, fsize, fcolor in _water_fish:
+        glColor3f(*fcolor)
+        draw_ellipse(fx, fy, 0.04 * fsize, 0.02 * fsize, 12)
+        glBegin(GL_TRIANGLES)
+        if fdir > 0:
+            glVertex2f(fx - 0.045 * fsize, fy)
+            glVertex2f(fx - 0.065 * fsize, fy + 0.02 * fsize)
+            glVertex2f(fx - 0.065 * fsize, fy - 0.02 * fsize)
+        else:
+            glVertex2f(fx + 0.045 * fsize, fy)
+            glVertex2f(fx + 0.065 * fsize, fy + 0.02 * fsize)
+            glVertex2f(fx + 0.065 * fsize, fy - 0.02 * fsize)
+        glEnd()
+        glColor3f(0, 0, 0)
+        draw_circle(fx + (0.015 if fdir > 0 else -0.015) * fsize, fy + 0.005 * fsize, 0.005 * fsize)
+
+
+def _update_bubbles():
+    global _water_bubbles
+    for b in _water_bubbles:
+        b[1] += 0.003 * b[3]
+        if b[1] > 1.1:
+            b[0] = random.uniform(-1, 1)
+            b[1] = -0.9
+            b[3] = random.uniform(0.5, 2.0)
+
+
+def _update_fish():
+    global _water_fish
+    if len(_water_fish) < 5:
+        _water_fish.append([
+            random.uniform(-1.2, 1.2),
+            random.uniform(-0.4, 0.6),
+            random.choice([-1, 1]),
+            random.uniform(0.7, 1.3),
+            (random.uniform(0.5, 0.9), random.uniform(0.4, 0.7), random.uniform(0.3, 0.6))
+        ])
+    for f in _water_fish[:]:
+        f[0] += 0.005 * f[2]
+        if f[0] > 1.3 or f[0] < -1.3:
+            _water_fish.remove(f)
+
+
+def _draw_seaweed_layer(scroll):
+    for i in range(12):
+        sx = -1.0 + i * 0.18 + (scroll * 0.5 % 0.18)
+        h = 0.15 + 0.1 * math.sin(i * 2.0)
+        wave = math.sin(scroll * 2 + i) * 0.02
+        glBegin(GL_TRIANGLE_STRIP)
+        for j in range(8):
+            t = j / 7.0
+            xoff = wave * t * 2
+            glVertex2f(sx + xoff, -0.82 + t * h)
+            glVertex2f(sx + 0.02 + xoff, -0.82 + t * h)
+        glEnd()
+
+
+def _draw_coral_layer(base_y, height, scroll):
+    count = 8
+    for i in range(count + 2):
+        cx = -1.2 + (i / count) * 2.8 + (scroll % (2.8 / count))
+        cx = ((cx + 1.2) % 2.8) - 1.2
+        h = height * (0.6 + 0.5 * math.sin(i * 2.5))
+        for branch in [-0.3, 0, 0.3]:
+            glBegin(GL_TRIANGLES)
+            glVertex2f(cx, base_y)
+            glVertex2f(cx + branch * 0.03, base_y + h)
+            glVertex2f(cx + branch * 0.06, base_y)
+            glEnd()
+
+
+# ============================================================
 # OBSTACLE DRAWING
 # ============================================================
 def draw_obstacle(obs):
@@ -761,7 +911,6 @@ def draw_obstacle(obs):
         else:
             glColor3f(0.40, 0.28, 0.16)
         draw_rect(ox, oy, ow, oh)
-        # rings on log
         if level == 0:
             glColor3f(0.65, 0.40, 0.15)
         elif level == 1:
@@ -770,7 +919,6 @@ def draw_obstacle(obs):
             glColor3f(0.50, 0.36, 0.22)
         draw_ellipse(ox + ow * 0.5, oy + oh * 0.5, ow * 0.45, oh * 0.45, 24)
         if level == 1:
-            # snow on top
             glColor3f(0.95, 0.98, 1.0)
             draw_rect(ox, oy + oh - 0.015, ow, 0.015)
 
@@ -782,7 +930,6 @@ def draw_obstacle(obs):
         else:
             glColor3f(0.38, 0.32, 0.48)
         draw_ellipse(ox + ow * 0.5, oy + oh * 0.45, ow * 0.5, oh * 0.5, 20)
-        # highlight
         if level == 0:
             glColor3f(0.70, 0.65, 0.60)
         elif level == 1:
@@ -790,17 +937,19 @@ def draw_obstacle(obs):
         else:
             glColor3f(0.55, 0.48, 0.62)
         draw_ellipse(ox + ow * 0.38, oy + oh * 0.55, ow * 0.20, oh * 0.15, 16)
+        if level == 3:
+            glColor3f(0.3, 0.2, 0.1)
+            draw_circle(ox + ow * 0.35, oy + oh * 0.5, ow * 0.06)
+            draw_circle(ox + ow * 0.65, oy + oh * 0.5, ow * 0.06)
 
-    elif otype == 2:  # mine / cactus / mine
+    elif otype == 2:  # mine / cactus / crystal spike / scorpion / jellyfish
         if level == 1:
-            # ice cactus (blue-white spiky)
             glColor3f(0.70, 0.85, 1.00)
             draw_rect(ox + ow * 0.35, oy, ow * 0.30, oh)
             glColor3f(0.80, 0.92, 1.00)
             draw_rect(ox + ow * 0.10, oy + oh * 0.45, ow * 0.30, oh * 0.20)
             draw_rect(ox + ow * 0.60, oy + oh * 0.55, ow * 0.30, oh * 0.20)
             glColor3f(0.55, 0.75, 0.95)
-            # spines
             for si in range(5):
                 sx2 = ox + ow * 0.35 + si * ow * 0.06
                 glBegin(GL_TRIANGLES)
@@ -808,13 +957,48 @@ def draw_obstacle(obs):
                 glVertex2f(sx2 + ow * 0.04, oy + oh + 0.03)
                 glVertex2f(sx2 + ow * 0.08, oy + oh)
                 glEnd()
+        elif level == 3:
+            # Scorpion (desert)
+            glColor3f(0.60, 0.35, 0.10)
+            draw_ellipse(ox + ow * 0.5, oy + oh * 0.5, ow * 0.5, oh * 0.35, 16)
+            glLineWidth(3)
+            glBegin(GL_LINE_STRIP)
+            for ti in range(6):
+                tx = ox + ow * 0.7 + ti * 0.015
+                ty = oy + oh * 0.5 + math.sin(ti * 0.8) * 0.03
+                glVertex2f(tx, ty)
+            glEnd()
+            glColor3f(0.90, 0.20, 0.10)
+            draw_circle(ox + ow * 0.78, oy + oh * 0.55, 0.012)
+            glLineWidth(1)
+            glColor3f(0.50, 0.30, 0.10)
+            for claw in [-0.3, 0.3]:
+                glBegin(GL_TRIANGLES)
+                glVertex2f(ox + ow * 0.25, oy + oh * 0.4)
+                glVertex2f(ox + ow * 0.25 + claw * 0.04, oy + oh * 0.3)
+                glVertex2f(ox + ow * 0.25 + claw * 0.08, oy + oh * 0.4)
+                glEnd()
+        elif level == 4:
+            # Jellyfish (underwater)
+            glColor3f(0.85, 0.45, 0.75)
+            draw_ellipse(ox + ow * 0.5, oy + oh * 0.7, ow * 0.45, oh * 0.25, 16)
+            glColor3f(0.70, 0.30, 0.60)
+            t_offset = glutGet(GLUT_ELAPSED_TIME) / 150.0
+            for ti in range(5):
+                glLineWidth(1.5)
+                glBegin(GL_LINE_STRIP)
+                for tj in range(6):
+                    tx = ox + ow * 0.3 + ti * ow * 0.1 + math.sin(t_offset + ti) * 0.005
+                    ty = oy + oh * 0.5 - tj * 0.03
+                    glVertex2f(tx, ty)
+                glEnd()
+            glLineWidth(1)
         else:
-            # mine bomb
+            # Mine bomb
             glColor3f(0.15, 0.15, 0.15)
             draw_circle(ox + ow * 0.5, oy + oh * 0.55, ow * 0.45)
             glColor3f(0.30, 0.30, 0.30)
             draw_circle(ox + ow * 0.5, oy + oh * 0.6, ow * 0.25)
-            # fuse
             glColor3f(0.60, 0.40, 0.10)
             glLineWidth(2)
             glBegin(GL_LINE_STRIP)
@@ -824,11 +1008,9 @@ def draw_obstacle(obs):
                 glVertex2f(fx, fy)
             glEnd()
             glLineWidth(1)
-            # spark
             t = glutGet(GLUT_ELAPSED_TIME) / 100.0
             glColor3f(1.0, 0.8 + 0.2 * math.sin(t * 5), 0.0)
             draw_circle(ox + ow * 0.5 + math.sin(t) * 0.01, oy + oh + 0.025, 0.008)
-            # skull
             glColor3f(0.9, 0.9, 0.9)
             draw_circle(ox + ow * 0.5, oy + oh * 0.58, ow * 0.18)
             glColor3f(0.15, 0.15, 0.15)
@@ -842,42 +1024,32 @@ def draw_obstacle(obs):
 def draw_coin(coin):
     cx, cy, cr = coin[0], coin[1], coin[2]
     t = glutGet(GLUT_ELAPSED_TIME) / 300.0
-    # perspective spin: squeeze x-axis to simulate rotation
     spin = math.cos(t * 1.4 + cx * 5)
-    rx = cr * abs(spin)  # apparent x-radius (>0 always)
+    rx = cr * abs(spin)
 
-    # glow halo behind coin
     glow_r = cr * 1.6
     glow_squeeze = max(0.15, abs(spin)) * glow_r
     glColor3f(0.70, 0.52, 0.00)
     draw_ellipse(cx, cy, glow_squeeze, glow_r * 1.05, 32)
 
-    # coin edge (dark gold – gives thickness feel)
     glColor3f(0.55, 0.35, 0.00)
     draw_ellipse(cx, cy, rx + 0.003, cr + 0.003, 40)
 
-    # coin face gradient layers
-    # base gold
     glColor3f(0.92, 0.68, 0.00)
     draw_ellipse(cx, cy, rx, cr, 40)
-    # mid bright
     glColor3f(1.00, 0.85, 0.10)
     draw_ellipse(cx, cy, rx * 0.82, cr * 0.82, 36)
-    # inner highlight
     glColor3f(1.00, 0.96, 0.58)
     draw_ellipse(cx, cy, rx * 0.55, cr * 0.55, 32)
 
-    # dollar $ symbol (only when coin is face-on)
     if abs(spin) > 0.35:
-        sym_scale = abs(spin)  # fade in as coin faces viewer
-        # vertical bar of $
+        sym_scale = abs(spin)
         glColor3f(0.50, 0.30, 0.00)
         glLineWidth(max(1.0, 1.8 * sym_scale * cr / 0.035))
         glBegin(GL_LINES)
         glVertex2f(cx, cy + cr * 0.56)
         glVertex2f(cx, cy - cr * 0.56)
         glEnd()
-        # S curves of dollar sign (two arcs approximated)
         glLineWidth(max(1.0, 1.6 * sym_scale * cr / 0.035))
         glBegin(GL_LINE_STRIP)
         for ai in range(14):
@@ -895,7 +1067,6 @@ def draw_coin(coin):
         glEnd()
         glLineWidth(1)
 
-    # rim specular highlight (top-left bright arc)
     glColor3f(1.00, 1.00, 0.85)
     glLineWidth(max(1.5, 2.5 * cr / 0.035))
     glBegin(GL_LINE_STRIP)
@@ -913,9 +1084,15 @@ def draw_star_item(star):
     sx, sy = star[0], star[1]
     t = glutGet(GLUT_ELAPSED_TIME) / 200.0
     scale = 1.0 + 0.15 * math.sin(t * 3)
-    glColor3f(1.0, 0.95, 0.2)
+    if selected_level == 4:
+        glColor3f(1.0, 0.60, 0.30)
+    else:
+        glColor3f(1.0, 0.95, 0.2)
     draw_star_shape(sx, sy, 0.045 * scale, 0.020 * scale)
-    glColor3f(1.0, 1.0, 0.6)
+    if selected_level == 4:
+        glColor3f(1.0, 0.75, 0.50)
+    else:
+        glColor3f(1.0, 1.0, 0.6)
     draw_star_shape(sx, sy, 0.025 * scale, 0.010 * scale)
 
 
@@ -993,7 +1170,7 @@ def update_rain():
 def draw_rain():
     if not rain_active:
         return
-    glColor3f(0.5, 0.7, 1.0)  # no alpha needed, just lighter blue
+    glColor3f(0.5, 0.7, 1.0)
     glLineWidth(1.2)
     glBegin(GL_LINES)
     for drop in rain_drops:
@@ -1011,7 +1188,7 @@ def init_level():
     global score, injury_count, game_over_flag, speed, speed_timer
     global obstacles, coins, stars, explosions
     global rain_drops, rain_active, rain_timer
-    global _scroll_jungle, _scroll_ice, _scroll_ug
+    global _scroll_jungle, _scroll_ice, _scroll_ug, _scroll_desert, _scroll_water, _water_fish
 
     cat_x = -0.65
     cat_y = ground_y
@@ -1031,8 +1208,10 @@ def init_level():
     _scroll_jungle = 0.0
     _scroll_ice = 0.0
     _scroll_ug = 0.0
+    _scroll_desert = 0.0
+    _scroll_water = 0.0
+    _water_fish = []
 
-    # spawn obstacles (type: 0=log, 1=rock, 2=mine/cactus)
     obstacles = []
     types = [0, 1, 2]
     xs = [1.0, 1.6, 2.3, 2.9]
@@ -1083,23 +1262,18 @@ def draw_splash():
     draw_cosmic_background()
     t = glutGet(GLUT_ELAPSED_TIME) / 1000.0
 
-    # title glow ring
     glColor3f(0.25, 0.12, 0.50)
     draw_circle(0, 0.20, 0.35, 64)
 
-    # cat character (large)
     cat_bob = math.sin(t * 1.5) * 0.03
     draw_cat(-0.085, 0.00 + cat_bob, scale=1.6)
 
-    # MINILEAP title
     glColor3f(1.0, 0.90, 0.20)
     draw_text(-0.38, 0.70, "M I N I L E A P", GLUT_BITMAP_TIMES_ROMAN_24)
 
-    # subtitle
     glColor3f(0.80, 0.70, 1.00)
     draw_text_centered(0.58, "The Cosmic Cat Adventure", GLUT_BITMAP_HELVETICA_18)
 
-    # stars around title
     for i in range(8):
         angle = t * 0.5 + i * math.pi / 4
         sx2 = 0.42 * math.cos(angle)
@@ -1107,16 +1281,13 @@ def draw_splash():
         glColor3f(1.0, 0.9, 0.3)
         draw_star_shape(sx2, sy2, 0.018, 0.008)
 
-    # press space prompt (blinking)
     if int(t * 2) % 2 == 0:
         glColor3f(0.9, 0.9, 1.0)
         draw_text_centered(-0.82, "Press SPACE to Continue", GLUT_BITMAP_HELVETICA_18)
 
-    # version
     glColor3f(0.4, 0.4, 0.6)
     draw_text(
-        -0.98,
-        -0.95,
+        -0.98, -0.95,
         "MiniLeap v1.0  |  Magnific Studios Style",
         GLUT_BITMAP_HELVETICA_12,
     )
@@ -1129,7 +1300,6 @@ def draw_story():
     global story_phase, story_timer, fly_x, fly_y, fly_dir, current_screen
 
     draw_cosmic_background()
-    # floor
     glColor3f(0.18, 0.62, 0.10)
     draw_rect(-1, -0.80, 2, 0.15)
 
@@ -1137,17 +1307,13 @@ def draw_story():
     story_timer += 1
 
     if story_phase == 0:
-        # cat sleeping on floor
         draw_cat(-0.08, -0.70, scale=1.2)
-        # zzz
         glColor3f(0.8, 0.8, 1.0)
         draw_text(0.10, -0.40, "z", GLUT_BITMAP_HELVETICA_18)
         draw_text(0.16, -0.34, "z", GLUT_BITMAP_HELVETICA_18)
         draw_text(0.23, -0.27, "Z", GLUT_BITMAP_TIMES_ROMAN_24)
         glColor3f(1, 1, 1)
-        draw_text_centered(
-            -0.92, "MiniLeap is peacefully napping...", GLUT_BITMAP_HELVETICA_18
-        )
+        draw_text_centered(-0.92, "MiniLeap is peacefully napping...", GLUT_BITMAP_HELVETICA_18)
         if story_timer > 160:
             story_phase = 1
             story_timer = 0
@@ -1155,9 +1321,7 @@ def draw_story():
             fly_y = -0.42
 
     elif story_phase == 1:
-        # cat + fly buzzing
         draw_cat(-0.08, -0.70, scale=1.2)
-        # annoyed face - red eyes
         glColor3f(1, 0.2, 0.2)
         draw_circle(-0.03, -0.58, 0.008)
         draw_circle(0.03, -0.58, 0.008)
@@ -1168,33 +1332,25 @@ def draw_story():
         glColor3f(1, 0.8, 0.2)
         draw_text(-0.12, -0.20, "BZZZ!", GLUT_BITMAP_HELVETICA_18)
         glColor3f(1, 1, 1)
-        draw_text_centered(
-            -0.92, "A fly is disturbing MiniLeap's nap!", GLUT_BITMAP_HELVETICA_18
-        )
+        draw_text_centered(-0.92, "A fly is disturbing MiniLeap's nap!", GLUT_BITMAP_HELVETICA_18)
         if story_timer > 180:
             story_phase = 2
             story_timer = 0
 
     elif story_phase == 2:
-        # cat chasing fly running
         run_offset = (story_timer * 0.008) % 0.4 - 0.3
         draw_cat(-0.5 + run_offset * 3, -0.70, scale=1.2)
         fly_x = -0.2 + run_offset * 3.5
         fly_y = -0.42 + math.sin(story_timer * 0.15) * 0.08
         draw_fly(fly_x, fly_y, scale=1.5)
         glColor3f(1, 1, 1)
-        draw_text_centered(
-            -0.92,
-            "MiniLeap chases the fly through the world!",
-            GLUT_BITMAP_HELVETICA_18,
-        )
+        draw_text_centered(-0.92, "MiniLeap chases the fly through the world!", GLUT_BITMAP_HELVETICA_18)
         if story_timer > 220:
             story_phase = 0
             story_timer = 0
             current_screen = SCREEN_INSTRUCTIONS
             return
 
-    # skip
     glColor3f(0.55, 0.55, 0.75)
     draw_text(0.62, -0.93, "SPACE to skip", GLUT_BITMAP_HELVETICA_12)
 
@@ -1334,7 +1490,6 @@ def _draw_card(x, y, w, h):
 
 
 def draw_heart(cx, cy):
-    # simple heart
     glBegin(GL_POLYGON)
     for i in range(100):
         t = 2 * math.pi * i / 100
@@ -1358,12 +1513,14 @@ def draw_heart(cx, cy):
 # MAIN MENU
 # ============================================================
 level_buttons = [
-    (-0.75, -0.10, 0.40, 0.55),  # Jungle
-    (-0.15, -0.10, 0.40, 0.55),  # Ice
-    (0.45, -0.10, 0.40, 0.55),  # Underground
+    (-0.95, -0.10, 0.35, 0.55),  # Jungle
+    (-0.52, -0.10, 0.35, 0.55),  # Ice
+    (-0.09, -0.10, 0.35, 0.55),  # Underground
+    ( 0.34, -0.10, 0.35, 0.55),  # Desert
+    ( 0.77, -0.10, 0.35, 0.55),  # Underwater
 ]
-level_names = ["Jungle", "Ice Kingdom", "Underground"]
-level_subtitles = ["Tropical Adventure", "Frozen Tundra", "Crystal Cavern"]
+level_names = ["Jungle", "Ice Kingdom", "Underground", "Desert", "Underwater"]
+level_subtitles = ["Tropical Adventure", "Frozen Tundra", "Crystal Cavern", "Scorching Sands", "Deep Ocean"]
 
 
 def draw_main_menu():
@@ -1374,29 +1531,34 @@ def draw_main_menu():
     draw_text(-0.35, 0.82, "SELECT YOUR WORLD", GLUT_BITMAP_TIMES_ROMAN_24)
 
     glColor3f(0.70, 0.70, 1.00)
-    draw_text_centered(
-        0.72, "Click a world to begin your adventure!", GLUT_BITMAP_HELVETICA_18
-    )
+    draw_text_centered(0.72, "Click a world to begin your adventure!", GLUT_BITMAP_HELVETICA_18)
 
-    # level cards
     colors = [
-        (0.08, 0.35, 0.08),  # jungle green
-        (0.05, 0.15, 0.35),  # ice blue
-        (0.15, 0.05, 0.30),  # underground purple
+        (0.08, 0.35, 0.08),   # jungle green
+        (0.05, 0.15, 0.35),   # ice blue
+        (0.15, 0.05, 0.30),   # underground purple
+        (0.30, 0.12, 0.02),   # desert orange
+        (0.02, 0.10, 0.25),   # underwater navy
     ]
     border_colors = [
         (0.20, 0.80, 0.20),
         (0.40, 0.80, 1.00),
         (0.70, 0.30, 1.00),
+        (1.00, 0.70, 0.20),
+        (0.30, 0.70, 1.00),
     ]
-    preview_fn = [_preview_jungle, _preview_ice, _preview_underground]
+    preview_fn = [
+        _preview_jungle,
+        _preview_ice,
+        _preview_underground,
+        _preview_desert,
+        _preview_underwater,
+    ]
 
     for i, (bx, by, bw, bh) in enumerate(level_buttons):
-        # card bg
         glColor3f(*colors[i])
         draw_rect(bx, by, bw, bh)
 
-        # animated border
         pulse = 0.5 + 0.5 * math.sin(t * 2 + i * 1.2)
         bc = border_colors[i]
         glColor3f(bc[0] * pulse, bc[1] * pulse, bc[2] * pulse)
@@ -1409,34 +1571,27 @@ def draw_main_menu():
         glEnd()
         glLineWidth(1)
 
-        # mini preview
-        preview_fn[i](bx + bw * 0.5, by + bh * 0.62, 0.17)
+        preview_fn[i](bx + bw * 0.5, by + bh * 0.62, 0.12)
 
-        # level number
         glColor3f(*border_colors[i])
-        draw_text(bx + 0.03, by + bh - 0.05, f"{i + 1}.", GLUT_BITMAP_TIMES_ROMAN_24)
+        draw_text(bx + 0.02, by + bh - 0.06, f"{i + 1}.", GLUT_BITMAP_TIMES_ROMAN_24)
 
-        # name
         glColor3f(1, 1, 1)
-        name_w = len(level_names[i]) * 0.009
-        draw_text(
-            bx + bw / 2 - name_w, by + 0.18, level_names[i], GLUT_BITMAP_TIMES_ROMAN_24
-        )
+        name_w = len(level_names[i]) * 0.008
+        draw_text(bx + bw / 2 - name_w, by + 0.18, level_names[i], GLUT_BITMAP_TIMES_ROMAN_24)
 
-        # subtitle
-        glColor3f(0.75, 0.85, 0.75 if i == 0 else (0.85 if i == 1 else 0.80))
-        sub_w = len(level_subtitles[i]) * 0.0075
-        draw_text(
-            bx + bw / 2 - sub_w, by + 0.08, level_subtitles[i], GLUT_BITMAP_HELVETICA_12
-        )
+        glColor3f(0.75, 0.85, 0.75)
+        sub_w = len(level_subtitles[i]) * 0.006
+        draw_text(bx + bw / 2 - sub_w, by + 0.08, level_subtitles[i], GLUT_BITMAP_HELVETICA_12)
 
-    # mini cat walking across bottom
     cx = -1.0 + (t * 0.25) % 2.2
     draw_cat(cx, -0.88, scale=0.8)
 
 
+# ============================================================
+# LEVEL PREVIEW FUNCTIONS
+# ============================================================
 def _preview_jungle(cx, cy, r):
-    # mini tree silhouettes
     glColor3f(0.10, 0.45, 0.10)
     draw_circle(cx, cy, r * 0.7, 20)
     glColor3f(0.06, 0.30, 0.06)
@@ -1447,7 +1602,6 @@ def _preview_jungle(cx, cy, r):
 
 
 def _preview_ice(cx, cy, r):
-    # mini mountain
     glColor3f(0.12, 0.20, 0.35)
     glBegin(GL_TRIANGLES)
     glVertex2f(cx - r * 0.8, cy - r * 0.8)
@@ -1481,6 +1635,67 @@ def _preview_underground(cx, cy, r):
     draw_rect(cx - r * 0.80, cy - r * 0.80, r * 1.6, r * 0.22)
 
 
+def _preview_desert(cx, cy, r):
+    # Sky gradient
+    glColor3f(0.75, 0.25, 0.45)
+    draw_circle(cx, cy, r * 0.75, 20)
+    # Sun
+    glColor3f(1.0, 0.95, 0.3)
+    draw_circle(cx + r * 0.35, cy + r * 0.45, r * 0.22)
+    # Dune
+    glColor3f(0.85, 0.55, 0.15)
+    glBegin(GL_POLYGON)
+    glVertex2f(cx - r * 0.80, cy - r * 0.50)
+    glVertex2f(cx - r * 0.20, cy - r * 0.10)
+    glVertex2f(cx + r * 0.40, cy - r * 0.50)
+    glEnd()
+    # Sand floor
+    glColor3f(0.90, 0.65, 0.20)
+    draw_rect(cx - r * 0.80, cy - r * 0.80, r * 1.6, r * 0.32)
+    # Cactus
+    glColor3f(0.25, 0.40, 0.15)
+    draw_rect(cx - r * 0.05, cy - r * 0.75, r * 0.10, r * 0.55)
+    draw_rect(cx - r * 0.22, cy - r * 0.45, r * 0.16, r * 0.10)
+    draw_rect(cx + r * 0.06, cy - r * 0.52, r * 0.16, r * 0.10)
+
+
+def _preview_underwater(cx, cy, r):
+    # Deep ocean bg
+    glColor3f(0.00, 0.18, 0.38)
+    draw_circle(cx, cy, r * 0.75, 20)
+    # Light rays
+    glColor3f(0.10, 0.30, 0.50)
+    glBegin(GL_TRIANGLES)
+    glVertex2f(cx - r * 0.15, cy + r * 0.60)
+    glVertex2f(cx - r * 0.35, cy - r * 0.70)
+    glVertex2f(cx + r * 0.05, cy - r * 0.70)
+    glEnd()
+    glBegin(GL_TRIANGLES)
+    glVertex2f(cx + r * 0.20, cy + r * 0.60)
+    glVertex2f(cx + r * 0.05, cy - r * 0.70)
+    glVertex2f(cx + r * 0.40, cy - r * 0.70)
+    glEnd()
+    # Seaweed
+    glColor3f(0.10, 0.50, 0.18)
+    draw_rect(cx - r * 0.45, cy - r * 0.75, r * 0.08, r * 0.45)
+    draw_rect(cx - r * 0.20, cy - r * 0.75, r * 0.08, r * 0.38)
+    draw_rect(cx + r * 0.20, cy - r * 0.75, r * 0.08, r * 0.42)
+    # Coral
+    glColor3f(0.95, 0.45, 0.35)
+    draw_ellipse(cx + r * 0.45, cy - r * 0.55, r * 0.12, r * 0.20, 12)
+    # Sandy floor
+    glColor3f(0.70, 0.60, 0.40)
+    draw_rect(cx - r * 0.80, cy - r * 0.80, r * 1.6, r * 0.22)
+    # Small fish
+    glColor3f(0.80, 0.60, 0.20)
+    draw_ellipse(cx - r * 0.10, cy + r * 0.10, r * 0.18, r * 0.09, 10)
+    glBegin(GL_TRIANGLES)
+    glVertex2f(cx - r * 0.28, cy + r * 0.10)
+    glVertex2f(cx - r * 0.38, cy + r * 0.20)
+    glVertex2f(cx - r * 0.38, cy + r * 0.00)
+    glEnd()
+
+
 # ============================================================
 # CONFIRM SCREEN
 # ============================================================
@@ -1489,7 +1704,6 @@ def draw_confirm():
     t = glutGet(GLUT_ELAPSED_TIME) / 1000.0
     lvl_name = level_names[confirm_level] if confirm_level >= 0 else "?"
 
-    # cat bounce
     bob = math.sin(t * 3) * 0.04
     draw_cat(-0.07, -0.15 + bob, scale=1.4)
 
@@ -1511,42 +1725,40 @@ def draw_confirm():
 # GAME SCREEN
 # ============================================================
 def draw_game():
-    global _scroll_jungle, _scroll_ice, _scroll_ug
+    global _scroll_jungle, _scroll_ice, _scroll_ug, _scroll_desert, _scroll_water
 
-    # draw background
     if selected_level == 0:
         draw_jungle_bg()
         _scroll_jungle += speed * 0.8
     elif selected_level == 1:
         draw_ice_bg()
         _scroll_ice += speed * 0.8
-    else:
+    elif selected_level == 2:
         draw_underground_bg()
         _scroll_ug += speed * 0.8
+    elif selected_level == 3:
+        draw_desert_bg()
+        _scroll_desert += speed * 0.8
+    else:
+        draw_underwater_bg()
+        _scroll_water += speed * 0.8
 
-    # rain for jungle
     if selected_level == 0:
         draw_rain()
 
-    # obstacles
     for obs in obstacles:
         draw_obstacle(obs)
 
-    # coins
     for coin in coins:
         draw_coin(coin)
 
-    # stars
     for star in stars:
         draw_star_item(star)
 
-    # explosions
     draw_explosions()
 
-    # cat
     draw_cat(cat_x, cat_y)
 
-    # HUD
     _draw_hud()
 
     if game_over_flag:
@@ -1556,11 +1768,9 @@ def draw_game():
 def _draw_hud():
     t = glutGet(GLUT_ELAPSED_TIME) / 1000.0
 
-    # === Left panel: score + coin ===
-    # glass bg
+    # Left panel: score + coin
     glColor3f(0.02, 0.04, 0.12)
     draw_rect(-1.00, 0.855, 0.52, 0.130)
-    # subtle border
     glColor3f(0.40, 0.55, 0.90)
     glLineWidth(1.5)
     glBegin(GL_LINE_LOOP)
@@ -1570,23 +1780,19 @@ def _draw_hud():
     glVertex2f(-1.00, 0.985)
     glEnd()
     glLineWidth(1)
-    # animated coin icon in HUD
     draw_coin([-0.96, 0.930, 0.028])
-    # score text
     glColor3f(1.00, 0.92, 0.25)
     draw_text(-0.91, 0.918, f"{score}", GLUT_BITMAP_TIMES_ROMAN_24)
-    # label
     glColor3f(0.65, 0.65, 0.90)
     draw_text(-0.91, 0.865, level_names[selected_level], GLUT_BITMAP_HELVETICA_12)
 
-    # === Center: speed badge ===
+    # Center: speed badge
     if speed < 0.016:
         diff, dc = "EASY", (0.30, 1.00, 0.40)
     elif speed < 0.022:
         diff, dc = "MEDIUM", (1.00, 0.80, 0.20)
     else:
         diff, dc = "HARD", (1.00, 0.30, 0.20)
-    # badge bg
     bw = 0.22
     glColor3f(0.04, 0.04, 0.14)
     draw_rect(-bw / 2, 0.872, bw, 0.100)
@@ -1603,7 +1809,7 @@ def _draw_hud():
     approx_w = len(diff) * 0.012
     draw_text(-approx_w / 2, 0.900, diff, GLUT_BITMAP_HELVETICA_18)
 
-    # === Right panel: hearts ===
+    # Right panel: hearts
     glColor3f(0.02, 0.04, 0.12)
     draw_rect(0.50, 0.855, 0.50, 0.130)
     glColor3f(0.90, 0.30, 0.40)
@@ -1615,7 +1821,6 @@ def _draw_hud():
     glVertex2f(0.50, 0.985)
     glEnd()
     glLineWidth(1)
-    # heart icons
     for i in range(3):
         hpulse = 1.0 + 0.08 * math.sin(t * 4 + i) if i < 3 - injury_count else 1.0
         if i < 3 - injury_count:
@@ -1626,7 +1831,6 @@ def _draw_hud():
 
 
 def _draw_game_over():
-    # dark overlay
     glColor3f(0.04, 0.04, 0.04)
     draw_rect(-1, -1, 2, 2)
 
@@ -1638,7 +1842,6 @@ def _draw_game_over():
     glColor3f(1.0, 0.85, 0.10)
     draw_text_centered(0.08, f"Coins Collected: {score}", GLUT_BITMAP_HELVETICA_18)
 
-    # coin display
     for i in range(min(score, 10)):
         draw_coin([-0.48 + i * 0.10, -0.05, 0.025])
 
@@ -1669,7 +1872,7 @@ def display():
     elif current_screen == SCREEN_GAME:
         draw_game()
     elif current_screen == SCREEN_GAMEOVER:
-        draw_game()  # draws game_over overlay on top of scene
+        draw_game()
 
     glutSwapBuffers()
 
@@ -1684,7 +1887,6 @@ def update(value):
     global obstacles, coins, stars
 
     if current_screen == SCREEN_GAME and not game_over_flag:
-        # physics
         velocity_y += gravity
         cat_y += velocity_y
 
@@ -1698,11 +1900,9 @@ def update(value):
         if speed_timer % 400 == 0:
             speed = min(speed + 0.003, 0.030)
 
-        # rain
         if selected_level == 0:
             update_rain()
 
-        # obstacles
         to_respawn = []
         for obs in obstacles:
             obs[0] -= speed
@@ -1711,22 +1911,20 @@ def update(value):
             else:
                 if collide_rect_cat(cat_x, cat_y, obs[0], obs[1], obs[2], obs[3]):
                     otype = obs[4]
-                    if otype == 2:  # mine / cactus = instant death
-                        sound_dizzy.play()  # ← dizzy sound on bomb hit
+                    if otype == 2:
+                        sound_dizzy.play()
                         spawn_explosion(obs[0] + obs[2] * 0.5, obs[1] + obs[3] * 0.5)
                         injury_count = 3
                     else:
                         injury_count += 1
                         spawn_explosion(obs[0] + obs[2] * 0.5, obs[1] + obs[3] * 0.5)
-                        # spawn star after injury
                         if len(stars) == 0:
                             stars.append([cat_x + 0.5, random.uniform(-0.30, 0.10)])
-                    obs[0] = 2.0  # push off screen immediately
+                    obs[0] = 2.0
                     if injury_count >= 3:
                         game_over_flag = True
 
         for obs in to_respawn:
-            # random type weighted
             otype = random.choices([0, 1, 2], weights=[4, 4, 2])[0]
             if otype == 0:
                 ow, oh = 0.09, 0.14
@@ -1740,19 +1938,17 @@ def update(value):
             obs[3] = oh
             obs[4] = otype
 
-        # coins
         for coin in coins:
             coin[0] -= speed
             if coin[0] + coin[2] < -1.1:
                 coin[0] = random.uniform(1.1, 2.0)
                 coin[1] = random.uniform(-0.40, 0.20)
             elif collide_coin_cat(cat_x, cat_y, coin[0], coin[1], coin[2]):
-                sound_coin.play()  # ← coin collect sound
+                sound_coin.play()
                 score += 1
                 coin[0] = random.uniform(1.1, 2.0)
                 coin[1] = random.uniform(-0.40, 0.20)
 
-        # stars
         for star in stars[:]:
             star[0] -= speed
             if star[0] < -1.2:
@@ -1803,6 +1999,12 @@ def keyboard(key, x, y):
         elif key == "3":
             confirm_level = 2
             current_screen = SCREEN_CONFIRM
+        elif key == "4":
+            confirm_level = 3
+            current_screen = SCREEN_CONFIRM
+        elif key == "5":
+            confirm_level = 4
+            current_screen = SCREEN_CONFIRM
 
     elif current_screen == SCREEN_CONFIRM:
         if key == " ":
@@ -1834,7 +2036,6 @@ def mouse_click(button, state, mx, my):
 
     if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
         if current_screen == SCREEN_MAIN_MENU:
-            # convert window coords to GL coords
             gl_x = (mx / WIN_W) * 2.0 - 1.0
             gl_y = 1.0 - (my / WIN_H) * 2.0
 
